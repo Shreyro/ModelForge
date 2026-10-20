@@ -1,98 +1,125 @@
-"""
-FastAPI inference service for ModelForge.
-Loads the latest trained model from MLflow or local storage and serves predictions.
-"""
 
-import os
+"""FastAPI inference service for ModelForge."""
+
+from contextlib import asynccontextmanager
+
 import mlflow
+import mlflow.sklearn
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from typing import List
+
+
+def load_latest_model():
+    """Load the model artifact from the latest baseline training run."""
+
+    experiment = mlflow.get_experiment_by_name("ModelForge-Baseline")
+    if experiment is None:
+        return None
+
+    runs = mlflow.search_runs(
+        experiment_ids=[experiment.experiment_id],
+        order_by=["start_time DESC"],
+        max_results=1,
+    )
+
+    if runs.empty:
+        return None
+
+    run_id = runs.iloc[0]["run_id"]
+    model_uri = f"runs:/{run_id}/model"
+
+    loaded_model = mlflow.sklearn.load_model(model_uri)
+    print(f"Loaded MLflow run: {run_id}")
+    return loaded_model
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Load the model when the API starts."""
+    app.state.model = None
+
+    try:
+        app.state.model = load_latest_model()
+    except Exception as exc:
+        print(f"Model loading failed: {exc}")
+
+    yield
+
 
 app = FastAPI(
     title="ModelForge Prediction API",
-    description="Production-ready MLOps platform serving Breast Cancer classification models.",
-    version="1.0.0"
+    description="MLflow-backed prediction service for a demonstration classifier.",
+    version="1.1.0",
+    lifespan=lifespan,
 )
 
-# Define request schema with validation
+
 class ModelInput(BaseModel):
-    features: List[float] = Field(
-        ..., 
-        description="List of 30 numerical features corresponding to the breast cancer dataset."
+    features: list[float] = Field(
+        ...,
+        description="30 numerical features in the dataset's original feature order.",
     )
 
-# Global model variable
-model = None
-
-@app.on_event("startup")
-def load_model():
-    """
-    Loads the trained model on startup by searching the mlruns directory.
-    """
-    global model
-    try:
-        mlruns_path = "mlruns"
-        if os.path.exists(mlruns_path):
-            # Recursively walk through mlruns to find the 'model' artifact folder
-            for root, dirs, files in os.walk(mlruns_path):
-                if "model" in dirs:
-                    model_path = os.path.join(root, "model")
-                    if os.path.exists(os.path.join(model_path, "MLmodel")):
-                        model = mlflow.sklearn.load_model(model_path)
-                        print(f"Successfully loaded model from: {model_path}")
-                        return
-        
-        print("Warning: MLflow artifact not found automatically.")
-    except Exception as e:
-        print(f"Error loading model: {e}")
 
 @app.get("/")
 def read_root():
     return {
         "platform": "ModelForge",
         "status": "active",
-        "endpoints": ["/health", "/predict"]
+        "endpoints": ["/health", "/predict"],
     }
+
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint for Kubernetes / Docker container probes."""
+    model_loaded = app.state.model is not None
     return {
-        "status": "healthy",
-        "model_loaded": model is not None
+        "status": "healthy" if model_loaded else "degraded",
+        "model_loaded": model_loaded,
     }
+
 
 @app.post("/predict")
 def predict(input_data: ModelInput):
-    """
-    Accepts 30 feature values, validates them, and returns the classification prediction.
-    """
-    # 1. Validate input feature length first
     if len(input_data.features) != 30:
         raise HTTPException(
-            status_code=400, 
-            detail=f"Invalid feature count. Expected 30 features, got {len(input_data.features)}."
+            status_code=400,
+            detail=f"Expected 30 features, got {len(input_data.features)}.",
         )
-    
-    # 2. Check if model is loaded
+
+    model = app.state.model
     if model is None:
-        raise HTTPException(status_code=503, detail="Model is not loaded on the server.")
-    
+        raise HTTPException(
+            status_code=503,
+            detail="Model is not loaded. Train a model and restart the API.",
+        )
+
     try:
-        # Reshape input for sklearn prediction
-        features_array = np.array(input_data.features).reshape(1, -1)
-        prediction = int(model.predict(features_array)[0])
-        probability = float(model.predict_proba(features_array)[0][1])
-        
-        # Map label: 0 = Malignant, 1 = Benign
-        label_mapping = {0: "malignant", 1: "benign"}
+        features = np.asarray(input_data.features, dtype=float).reshape(1, -1)
+
+        if not np.isfinite(features).all():
+            raise HTTPException(
+                status_code=422,
+                detail="All feature values must be finite numbers.",
+            )
+
+        prediction = int(model.predict(features)[0])
+        probabilities = model.predict_proba(features)[0]
+
+        # scikit-learn dataset convention: 0 = malignant, 1 = benign.
+        labels = {0: "malignant", 1: "benign"}
 
         return {
             "prediction": prediction,
-            "class_label": label_mapping.get(prediction, "unknown"),
-            "probability_benign": probability
+            "class_label": labels[prediction],
+            "probability_benign": float(probabilities[1]),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Prediction failed.",
+        ) from exc
