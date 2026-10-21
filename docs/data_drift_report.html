@@ -1,317 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ModelForge | Data Drift Monitor</title>
+<style>
+    body {
+        margin: 0;
+        padding: 32px;
+        background: #0d1117;
+        color: #c9d1d9;
+        font-family: "Segoe UI", Arial, sans-serif;
+    }
+    header {
+        border-bottom: 1px solid #30363d;
+        padding-bottom: 20px;
+        margin-bottom: 24px;
+    }
+    h1 { color: #58a6ff; margin-bottom: 8px; }
+    h2 { color: #f0f6fc; font-size: 18px; }
+    .muted { color: #8b949e; font-size: 13px; }
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin: 24px 0;
+    }
+    .card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        padding: 20px;
+    }
+    .value {
+        font-size: 27px;
+        font-weight: 700;
+        margin: 10px 0;
+    }
+    .status { color: #3fb950; }
+    .panel {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 24px;
+        overflow-x: auto;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+        text-align: left;
+        padding: 12px;
+        border-bottom: 1px solid #30363d;
+        font-size: 13px;
+    }
+    th { color: #8b949e; }
+    .healthy, .alert {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 5px;
+        font-weight: 600;
+    }
+    .healthy { color: #3fb950; background: #102a1b; }
+    .alert { color: #ff7b72; background: #351717; }
+    a { color: #58a6ff; }
+    .note {
+        border-left: 3px solid #d29922;
+        padding: 12px 16px;
+        background: #1f1a10;
+        margin-top: 24px;
+        line-height: 1.6;
+    }
+    @media (max-width: 600px) {
+        body { padding: 16px; }
+    }
+</style>
+</head>
+<body>
+<header>
+    <h1>⚡ ModelForge Control Center</h1>
+    <div class="muted">Data Drift Monitoring · Breast Cancer Wisconsin dataset</div>
+</header>
 
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ModelForge Command Center | Interactive MLOps Dashboard</title>
-        <style>
-            body {
-                background-color: #0d1117;
-                color: #c9d1d9;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                margin: 0;
-                padding: 24px;
-            }
-            .header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border-bottom: 1px solid #30363d;
-                padding-bottom: 16px;
-                margin-bottom: 24px;
-            }
-            .logo {
-                font-size: 20px;
-                font-weight: bold;
-                color: #58a6ff;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-            .subtitle {
-                color: #8b949e;
-                font-size: 13px;
-                margin-top: 4px;
-            }
-            .tabs {
-                display: flex;
-                gap: 12px;
-                margin-bottom: 24px;
-                border-bottom: 1px solid #30363d;
-                padding-bottom: 12px;
-            }
-            .tab {
-                background: #161b22;
-                border: 1px solid #30363d;
-                color: #8b949e;
-                padding: 8px 16px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-size: 13px;
-                font-weight: 600;
-                transition: all 0.2s ease;
-            }
-            .tab.active, .tab:hover {
-                background: #21262d;
-                color: #f0f6fc;
-                border-color: #58a6ff;
-            }
-            .alert-banner {
-                background-color: #1f1a10;
-                border: 1px solid #d29922;
-                border-radius: 6px;
-                padding: 12px 16px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 24px;
-            }
-            .alert-text {
-                color: #f0883e;
-                font-size: 14px;
-                font-weight: 500;
-            }
-            .metrics-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-                gap: 16px;
-                margin-bottom: 32px;
-            }
-            .card {
-                background-color: #161b22;
-                border: 1px solid #30363d;
-                border-radius: 8px;
-                padding: 20px;
-                transition: transform 0.2s;
-            }
-            .card:hover {
-                border-color: #8b949e;
-            }
-            .card-title {
-                color: #8b949e;
-                font-size: 11px;
-                font-weight: bold;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                margin-bottom: 8px;
-            }
-            .card-value {
-                font-size: 28px;
-                font-weight: bold;
-                color: #f0f6fc;
-            }
-            .card-sub {
-                font-size: 12px;
-                color: #3fb950;
-                margin-top: 6px;
-            }
-            .controls {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 16px;
-            }
-            .search-input {
-                background-color: #161b22;
-                border: 1px solid #30363d;
-                color: #f0f6fc;
-                padding: 8px 12px;
-                border-radius: 6px;
-                width: 280px;
-                font-size: 13px;
-            }
-            .search-input:focus {
-                outline: none;
-                border-color: #58a6ff;
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                background-color: #161b22;
-                border: 1px solid #30363d;
-                border-radius: 8px;
-                overflow: hidden;
-            }
-            th, td {
-                padding: 14px 16px;
-                text-align: left;
-                border-bottom: 1px solid #30363d;
-                font-size: 14px;
-            }
-            th {
-                background-color: #21262d;
-                color: #8b949e;
-                font-weight: 600;
-                font-size: 12px;
-                text-transform: uppercase;
-            }
-            tr:last-child td {
-                border-bottom: none;
-            }
-            tr.clickable:hover {
-                background-color: #1c2128;
-                cursor: pointer;
-            }
-            .badge-alert {
-                background-color: rgba(248, 81, 73, 0.15);
-                color: #ff7b72;
-                border: 1px solid rgba(248, 81, 73, 0.4);
-                padding: 4px 8px;
-                border-radius: 4px;
-                font-size: 12px;
-                font-weight: 600;
-            }
-            .badge-healthy {
-                background-color: rgba(63, 185, 80, 0.15);
-                color: #3fb950;
-                border: 1px solid rgba(63, 185, 80, 0.4);
-                padding: 4px 8px;
-                border-radius: 4px;
-                font-size: 12px;
-                font-weight: 600;
-            }
-            .modal {
-                display: none;
-                position: fixed;
-                top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.7);
-                justify-content: center;
-                align-items: center;
-            }
-            .modal-content {
-                background: #161b22;
-                border: 1px solid #30363d;
-                padding: 24px;
-                border-radius: 8px;
-                width: 400px;
-                max-width: 90%;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <div>
-                <div class="logo">⚡ ModelForge Control Center</div>
-                <div class="subtitle">Production Workspace • Breast Cancer Wisconsin Pipeline</div>
-            </div>
-            <div style="color: #8b949e; font-size: 13px;">System Status: <span style="color: #3fb950;">● Operational</span></div>
-        </div>
+<div class="grid">
+    <div class="card">
+        <div class="muted">MONITORING STATUS</div>
+        <div class="value status">NO SIGNIFICANT DRIFT</div>
+        <div class="muted">Based on feature-level statistical tests</div>
+    </div>
+    <div class="card">
+        <div class="muted">FEATURES CHECKED</div>
+        <div class="value">30</div>
+        <div class="muted">Numerical input features</div>
+    </div>
+    <div class="card">
+        <div class="muted">FEATURES FLAGGED</div>
+        <div class="value">0</div>
+        <div class="muted">Using corrected significance threshold</div>
+    </div>
+    <div class="card">
+        <div class="muted">DRIFTED FEATURE SHARE</div>
+        <div class="value">0.0%</div>
+        <div class="muted">Share of features flagged</div>
+    </div>
+</div>
 
-        <div class="tabs">
-            <div class="tab active" onclick="switchTab('fleet')">Fleet Overview</div>
-            <div class="tab" onclick="switchTab('drift')">Drift Telemetry Logs</div>
-        </div>
+<div class="panel">
+    <h2>Feature-level drift results</h2>
+    <p class="muted">
+        Reference: 455 training rows.
+        Comparison: 114 held-out test rows.
+        Bonferroni-adjusted significance level:
+        0.00166667.
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>Feature</th>
+                <th>KS statistic</th>
+                <th>P-value</th>
+                <th>Result</th>
+            </tr>
+        </thead>
+        <tbody>
+            
+            <tr>
+                <td>concave points error</td>
+                <td>0.1240</td>
+                <td>0.11</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
 
-        <div class="alert-banner">
-            <div class="alert-text">⚠️ 1 Active Drift Warning — Breast Cancer Classifier v1.0 exhibits feature distribution shift</div>
-            <div style="background: #21262d; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; border: 1px solid #30363d;" onclick="openModal()">Inspect Logs →</div>
-        </div>
+            <tr>
+                <td>fractal dimension error</td>
+                <td>0.1215</td>
+                <td>0.124</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
 
-        <div class="metrics-grid">
-            <div class="card">
-                <div class="card-title">Models Monitored</div>
-                <div class="card-value">3</div>
-                <div class="card-sub">Active in production</div>
-            </div>
-            <div class="card">
-                <div class="card-title">Test Batch Size</div>
-                <div class="card-value">114</div>
-                <div class="card-sub">↑ Verified telemetry</div>
-            </div>
-            <div class="card">
-                <div class="card-title">Fleet P99 Latency</div>
-                <div class="card-value">209ms</div>
-                <div class="card-sub">SLA avg: 248ms</div>
-            </div>
-            <div class="card">
-                <div class="card-title">System Uptime</div>
-                <div class="card-value">99.97%</div>
-                <div class="card-sub">30-day rolling</div>
-            </div>
-        </div>
+            <tr>
+                <td>mean concavity</td>
+                <td>0.1214</td>
+                <td>0.125</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
 
-        <div class="controls">
-            <div style="font-size: 18px; font-weight: 600; color: #f0f6fc;">Model Fleet Health</div>
-            <input type="text" id="searchInput" class="search-input" placeholder="Search models or metrics..." onkeyup="filterTable()">
-        </div>
+            <tr>
+                <td>worst concave points</td>
+                <td>0.1174</td>
+                <td>0.148</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
 
-        <table id="modelTable">
-            <thead>
-                <tr>
-                    <th>Model Name</th>
-                    <th>Status</th>
-                    <th>Latency (p99)</th>
-                    <th>Accuracy</th>
-                    <th>Drift Metric</th>
-                    <th>Last Retrain</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr class="clickable" onclick="alert('Viewing telemetry details for breast-cancer-classifier-v1')">
-                    <td style="color: #58a6ff; font-weight: 600;">breast-cancer-classifier-v1</td>
-                    <td><span class="badge-alert">ALERTING</span></td>
-                    <td>142ms</td>
-                    <td>97.4%</td>
-                    <td style="color: #ff7b72;">+2.4σ (Drift)</td>
-                    <td>Today</td>
-                </tr>
-                <tr class="clickable" onclick="alert('Viewing telemetry details for churn-predictor-v2')">
-                    <td style="color: #58a6ff; font-weight: 600;">churn-predictor-v2</td>
-                    <td><span class="badge-healthy">HEALTHY</span></td>
-                    <td>112ms</td>
-                    <td>95.8%</td>
-                    <td style="color: #3fb950;">+0.1σ</td>
-                    <td>3 days ago</td>
-                </tr>
-                <tr class="clickable" onclick="alert('Viewing telemetry details for reco-engine-v1')">
-                    <td style="color: #58a6ff; font-weight: 600;">reco-engine-v1</td>
-                    <td><span class="badge-healthy">HEALTHY</span></td>
-                    <td>203ms</td>
-                    <td>94.3%</td>
-                    <td style="color: #3fb950;">-0.1σ</td>
-                    <td>5 days ago</td>
-                </tr>
-            </tbody>
-        </table>
+            <tr>
+                <td>mean concave points</td>
+                <td>0.1131</td>
+                <td>0.177</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
 
-        <!-- Interactive Modal -->
-        <div id="driftModal" class="modal">
-            <div class="modal-content">
-                <h3 style="margin-top:0; color:#f0f6fc;">Drift Diagnostics</h3>
-                <p style="font-size:13px; color:#8b949e;">Feature <code>mean radius</code> exceeded statistical significance threshold (p < 0.01).</p>
-                <button onclick="closeModal()" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; padding:6px 12px; border-radius:4px; cursor:pointer; width:100%;">Close Panel</button>
-            </div>
-        </div>
+            <tr>
+                <td>mean symmetry</td>
+                <td>0.1089</td>
+                <td>0.209</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
 
-        <script>
-            function filterTable() {
-                let input = document.getElementById('searchInput');
-                let filter = input.value.toLowerCase();
-                let table = document.getElementById('modelTable');
-                let tr = table.getElementsByTagName('tr');
-                for (let i = 1; i < tr.length; i++) {
-                    let td = tr[i].getElementsByTagName('td')[0];
-                    if (td) {
-                        let txtValue = td.textContent || td.innerText;
-                        tr[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? "" : "none";
-                    }
-                }
-            }
-            function switchTab(tabName) {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                event.target.classList.add('active');
-                if(tabName === 'drift') {
-                    alert("Switching to raw Evidently telemetry streams view.");
-                }
-            }
-            function openModal() {
-                document.getElementById('driftModal').style.display = 'flex';
-            }
-            function closeModal() {
-                document.getElementById('driftModal').style.display = 'none';
-            }
-        </script>
-    </body>
-    </html>
-    
+            <tr>
+                <td>perimeter error</td>
+                <td>0.1085</td>
+                <td>0.215</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>worst concavity</td>
+                <td>0.1013</td>
+                <td>0.287</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>texture error</td>
+                <td>0.0976</td>
+                <td>0.326</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>worst symmetry</td>
+                <td>0.0928</td>
+                <td>0.387</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>radius error</td>
+                <td>0.0911</td>
+                <td>0.406</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>symmetry error</td>
+                <td>0.0859</td>
+                <td>0.484</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>worst area</td>
+                <td>0.0843</td>
+                <td>0.506</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>mean perimeter</td>
+                <td>0.0821</td>
+                <td>0.539</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>compactness error</td>
+                <td>0.0820</td>
+                <td>0.541</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>worst radius</td>
+                <td>0.0799</td>
+                <td>0.572</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>worst texture</td>
+                <td>0.0784</td>
+                <td>0.593</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>worst perimeter</td>
+                <td>0.0777</td>
+                <td>0.608</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>mean smoothness</td>
+                <td>0.0763</td>
+                <td>0.626</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>mean texture</td>
+                <td>0.0760</td>
+                <td>0.634</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>mean fractal dimension</td>
+                <td>0.0736</td>
+                <td>0.673</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>area error</td>
+                <td>0.0731</td>
+                <td>0.684</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>mean radius</td>
+                <td>0.0692</td>
+                <td>0.743</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>mean compactness</td>
+                <td>0.0689</td>
+                <td>0.75</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>mean area</td>
+                <td>0.0670</td>
+                <td>0.777</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>concavity error</td>
+                <td>0.0660</td>
+                <td>0.794</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>worst smoothness</td>
+                <td>0.0598</td>
+                <td>0.877</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>worst compactness</td>
+                <td>0.0553</td>
+                <td>0.927</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>smoothness error</td>
+                <td>0.0522</td>
+                <td>0.951</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+
+            <tr>
+                <td>worst fractal dimension</td>
+                <td>0.0486</td>
+                <td>0.974</td>
+                <td><span class="healthy">STABLE</span></td>
+            </tr>
+            
+        </tbody>
+    </table>
+</div>
+
+<div class="panel">
+    <h2>Detailed report</h2>
+    <p>Explore Evidently's dataset-level and feature-level drift analysis.</p>
+    <a href="evidently_drift_report.html">
+        Open Evidently drift report →
+    </a>
+</div>
+
+<div class="note">
+    <strong>Interpretation:</strong> This report compares a training
+    split with a held-out test split from the same source dataset.
+    It is a reproducible monitoring demonstration, not evidence of
+    real production drift. A stable feature distribution also does
+    not guarantee stable model accuracy.
+</div>
+
+<p class="muted">Generated by ModelForge. No live production telemetry is collected.</p>
+</body>
+</html>
